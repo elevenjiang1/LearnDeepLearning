@@ -66,9 +66,12 @@ def check_train_eval():
     net.load_state_dict(torch.load(os.path.join(Abs_Path,"Batchnormal.pth"))['model_state_dict'])
 
     print("**************************net parameter**************************")
+    net.eval()
     for name,parameters in net.named_parameters():
         print(name,":",parameters)
-
+    print("BatchNormal running mean and var:")
+    print(net.bn.running_mean)#0
+    print(net.bn.running_var)#1
 
     print("******************In train mode:******************")
     net.train()
@@ -77,6 +80,15 @@ def check_train_eval():
     print("******************In eval mode:******************")
     net.eval()
     out = net(datas)
+    print("net new running mean and var")
+    print(net.bn.running_mean)#
+    print(net.bn.running_var)#1
+
+    datas = torch.tensor([[0,0,0], [0,0,0]], dtype=torch.float).cuda()
+    out = net(datas)
+    print("net new running mean and var")
+    print(net.bn.running_mean)#
+    print(net.bn.running_var)#1
 
 def sim_forward():
     input_data=np.array([[1,2,3],[4,5,6]],dtype=np.float)
@@ -104,22 +116,14 @@ def sim_forward():
     print(out)
 
     #in eval() mode batchnormal output
+    running_mean=np.array([ 0.1648, -0.1363, -0.3154],dtype=np.float)
+    running_var=np.array([0.9891, 0.9172, 1.2305],dtype=np.float)
+    out=(fc_output-running_mean)/(np.sqrt(running_var+1e-05))
+    print("eval mode output is:")
+    print(out)
 
-
-
-def dummy_bn_forward(x, bn_weight, bn_bias, eps, mean_val=None, var_val=None):
-    if mean_val is None:
-        mean_val = x.mean([0, 2, 3])
-    if var_val is None:
-        # 这里需要注意，torch.var 默认算无偏估计，因此需要手动设置unbiased=False
-        var_val = x.var([0, 2, 3], unbiased=False)
-
-    x = x - mean_val[None, ..., None, None]
-    x = x / torch.sqrt(var_val[None, ..., None, None] + eps)
-    x = x * bn_weight[..., None, None] + bn_bias[..., None, None]
-    return mean_val, var_val, x
 
 
 if __name__ == '__main__':
-    # check_train_eval()
-    sim_forward()
+    check_train_eval()
+    # sim_forward()
